@@ -3,12 +3,20 @@
 
 """Observation conversion shared by the local RSL-RL compatibility wrapper."""
 
-from collections.abc import Mapping
 from typing import Any
 
 
-def split_observations(observation_groups: Mapping[str, Any], extras: dict) -> tuple[Any, dict]:
-    """Convert grouped observations to the legacy TienKung RSL-RL contract."""
+def split_observations(observation_groups: Any, extras: dict) -> tuple[Any, dict]:
+    """Return legacy observations unchanged or convert grouped observations."""
+    if isinstance(observation_groups, tuple) and len(observation_groups) == 2 and not extras:
+        observations, legacy_extras = observation_groups
+        return split_observations(observations, legacy_extras)
+
+    if not hasattr(observation_groups, "items"):
+        if "observations" not in extras:
+            raise KeyError("Legacy RSL-RL observations require extras['observations'].")
+        return observation_groups, extras
+
     if "policy" not in observation_groups:
         raise KeyError("RSL-RL observations must contain a 'policy' group.")
 
@@ -19,3 +27,11 @@ def split_observations(observation_groups: Mapping[str, Any], extras: dict) -> t
     )
     legacy_extras["observations"] = extra_observations
     return observation_groups["policy"], legacy_extras
+
+
+def split_observation_result(result: Any) -> tuple[Any, dict]:
+    """Normalize either Isaac Lab wrapper API to the legacy RSL-RL result."""
+    if isinstance(result, tuple) and len(result) == 2:
+        observations, extras = result
+        return split_observations(observations, extras)
+    return split_observations(result, {})
