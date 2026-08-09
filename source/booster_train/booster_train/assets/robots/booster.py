@@ -115,6 +115,15 @@ for a in BOOSTER_K1_CFG.actuators.values():
         if n in e and n in s and s[n]:
             K1_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
 
+# The locomotion URDF fixes the head and arm joints, leaving only the 12 lower-body
+# joints in the articulation. Reusing the calibrated leg actuator models keeps the
+# sim-to-real motor behavior identical to the full K1 configuration.
+BOOSTER_K1_LOCOMOTION_CFG = BOOSTER_K1_CFG.copy()
+BOOSTER_K1_LOCOMOTION_CFG.spawn.asset_path = f"{BOOSTER_ASSETS_DIR}/robots/K1/K1_locomotion.urdf"
+BOOSTER_K1_LOCOMOTION_CFG.init_state.joint_pos = {}
+BOOSTER_K1_LOCOMOTION_CFG.actuators.pop("arms")
+BOOSTER_K1_LOCOMOTION_CFG.actuators.pop("head")
+
 print(f'{BOOSTER_K1_CFG.actuators=}')
 print(f'{K1_ACTION_SCALE=}')
 
