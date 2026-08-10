@@ -12,6 +12,7 @@ simulation_app = app_launcher.app
 
 import gymnasium as gym  # noqa: E402
 import torch  # noqa: E402
+from booster_train.rsl_rl_compat import TienKungRslRlVecEnvWrapper  # noqa: E402
 from booster_train.tasks.manager_based.beyond_mimic.robots.k1.locomotion.env_cfg import (  # noqa: E402
     FlatEnvCfg,
     PlayFlatEnvCfg,
@@ -38,6 +39,16 @@ def test_locomotion_config_variants():
     assert rough.observations.policy.height_scan is not None
     assert rough.scene.terrain.terrain_generator.curriculum
     assert len(rough.scene.terrain.terrain_generator.sub_terrains) == 5
+    assert rough.observations.policy.height_scan.noise.n_min == -0.02
+    assert rough.observations.policy.height_scan.noise.n_max == 0.02
+    assert rough.observations.critic.height_scan.noise.n_min == -0.02
+    assert rough.observations.critic.height_scan.noise.n_max == 0.02
+    assert rough.rewards.action_rate_l2.weight == -0.05
+    assert rough.commands.base_velocity.resampling_time_range == (20.0, 20.0)
+
+    assert flat.observations.policy.height_scan.noise.n_min == -0.1
+    assert flat.rewards.action_rate_l2.weight == -0.5
+    assert flat.commands.base_velocity.resampling_time_range == (5.0, 10.0)
 
     assert play.scene.num_envs == 50
     assert play.events.push_robot is None
@@ -45,6 +56,7 @@ def test_locomotion_config_variants():
 
     assert runner.experiment_name == "k1_locomotion"
     assert runner.max_iterations == 50000
+    assert runner.clip_actions == 1.0
     assert runner.policy.init_noise_std == 0.8
     assert runner.algorithm.entropy_coef == 0.01
 
@@ -57,17 +69,25 @@ def test_flat_environment_steps_without_crashing():
     cfg.commands.base_velocity.debug_vis = False
 
     env = gym.make("Booster-K1-Locomotion-Flat-v0", cfg=cfg)
+    wrapped_env = TienKungRslRlVecEnvWrapper(env, clip_actions=1.0)
     try:
-        env.reset()
+        oversized_action = torch.full(
+            (env.unwrapped.num_envs, env.unwrapped.action_manager.total_action_dim),
+            1000.0,
+            device=env.unwrapped.device,
+        )
+        wrapped_env.step(oversized_action)
+        assert torch.max(torch.abs(env.unwrapped.action_manager.action)).item() <= 1.0
+
         action = torch.zeros(
             (env.unwrapped.num_envs, env.unwrapped.action_manager.total_action_dim),
             device=env.unwrapped.device,
         )
         for _ in range(100):
-            env.step(action)
+            wrapped_env.step(action)
         print("K1_LOCOMOTION_SMOKE_OK envs=4 steps=100", flush=True)
     finally:
-        env.close()
+        wrapped_env.close()
 
 
 if __name__ == "__main__":

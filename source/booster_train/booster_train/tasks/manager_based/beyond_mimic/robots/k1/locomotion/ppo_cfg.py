@@ -14,6 +14,10 @@ class PPORunnerCfg(BasePPORunnerCfg):
     experiment_name = "k1_locomotion"
     num_steps_per_env = 24
     save_interval = 1000
+    # Joint-position actions are normalized around the default pose. Bounding
+    # them prevents rare out-of-distribution observations from producing huge
+    # action-rate penalties and corrupting the value targets.
+    clip_actions = 1.0
 
     def __post_init__(self):
         super().__post_init__()

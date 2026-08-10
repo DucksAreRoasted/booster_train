@@ -22,6 +22,21 @@ LOCOMOTION_DIR = (
 )
 
 
+def _class_assignments(module_path: Path, class_name: str) -> dict[str, ast.expr]:
+    """Return simple class-level assignments from a configuration module."""
+    module = ast.parse(module_path.read_text())
+    class_node = next(
+        node for node in module.body if isinstance(node, ast.ClassDef) and node.name == class_name
+    )
+    return {
+        target.id: node.value
+        for node in class_node.body
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+
+
 def test_locomotion_tasks_are_registered():
     """All training and play variants are available through Gym."""
     runpy.run_path(str(LOCOMOTION_DIR / "__init__.py"))
@@ -33,6 +48,12 @@ def test_environment_variants_have_public_config_classes():
     module = ast.parse((LOCOMOTION_DIR / "env_cfg.py").read_text())
     class_names = {node.name for node in module.body if isinstance(node, ast.ClassDef)}
     assert {"FlatEnvCfg", "RoughEnvCfg", "PlayFlatEnvCfg"} <= class_names
+
+
+def test_locomotion_runner_bounds_policy_actions():
+    """Training bounds normalized policy actions before they reach the robot and rewards."""
+    assignments = _class_assignments(LOCOMOTION_DIR / "ppo_cfg.py", "PPORunnerCfg")
+    assert ast.literal_eval(assignments["clip_actions"]) == 1.0
 
 
 def test_locomotion_robot_has_exactly_twelve_movable_leg_joints():
@@ -51,4 +72,5 @@ def test_locomotion_robot_has_exactly_twelve_movable_leg_joints():
 if __name__ == "__main__":
     test_locomotion_tasks_are_registered()
     test_environment_variants_have_public_config_classes()
+    test_locomotion_runner_bounds_policy_actions()
     test_locomotion_robot_has_exactly_twelve_movable_leg_joints()
