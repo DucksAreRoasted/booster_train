@@ -1,0 +1,17 @@
+训练平地行走：
+python scripts/rsl_rl/train.py \
+    --task Booster-K1-Locomotion-Flat-v0 \
+    --headless \
+    --device cuda:0 \
+    --num_envs 4096 \
+    --max_iterations 3000
+    
+在训练平地后训练复杂地形：
+python scripts/rsl_rl/train.py \
+    --task Booster-K1-Locomotion-Rough-v0 \
+    --headless \
+    --device cuda:0 \
+    --num_envs 4096 \
+    --max_iterations 50000 \
+    --resume \
+    --load_run <Stage-I训练目录名称>

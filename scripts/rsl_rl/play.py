@@ -70,7 +70,14 @@ from isaaclab.envs import (
 )
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+try:
+    from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+except (ModuleNotFoundError, ImportError):
+    # Fallback: try isaaclab_tasks
+    try:
+        from isaaclab_tasks.utils import get_published_pretrained_checkpoint
+    except (ModuleNotFoundError, ImportError):
+        get_published_pretrained_checkpoint = None
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, export_policy_as_jit, export_policy_as_onnx
 
@@ -103,6 +110,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     if args_cli.use_pretrained_checkpoint:
+        if get_published_pretrained_checkpoint is None:
+            print("[ERROR] get_published_pretrained_checkpoint not available in this Isaac Lab version.")
+            print("[INFO] Please specify checkpoint directly with --checkpoint instead.")
+            return
         resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name)
         if not resume_path:
             print("[INFO] Unfortunately a pre-trained checkpoint is currently unavailable for this task.")

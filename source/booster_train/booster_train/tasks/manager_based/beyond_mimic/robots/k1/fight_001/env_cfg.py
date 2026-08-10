@@ -14,7 +14,7 @@ class FlatEnvCfg(TrackingEnvCfg):
 
         self.scene.robot = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.actions.joint_pos.scale = K1_ACTION_SCALE
-        self.commands.motion.motion_file = f"{BOOSTER_ASSETS_DIR}/motions/K1/k1_fight_001.npz"
+        self.commands.motion.motion_file = f"{BOOSTER_ASSETS_DIR}/motions/K1/k1_fight_001_30fps.npz"
         self.commands.motion.anchor_body_name = "Trunk"
         self.commands.motion.body_names = [
             'Trunk',
