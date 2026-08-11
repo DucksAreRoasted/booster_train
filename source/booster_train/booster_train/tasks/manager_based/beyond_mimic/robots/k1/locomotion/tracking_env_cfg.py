@@ -25,6 +25,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import booster_train.tasks.manager_based.beyond_mimic.mdp as beyond_mimic_mdp
+from booster_train.isaaclab_compat import ray_caster_yaw_alignment_kwargs
 
 from . import terminations as locomotion_terminations
 
@@ -43,7 +44,7 @@ NON_FOOT_BODY_PATTERN = r"^(?!left_foot_link$)(?!right_foot_link$).+$"
 HEIGHT_SCANNER_CFG = RayCasterCfg(
     prim_path="{ENV_REGEX_NS}/Robot/Trunk",
     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
-    ray_alignment="yaw",
+    **ray_caster_yaw_alignment_kwargs(RayCasterCfg),
     pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[0.6, 0.6]),
     debug_vis=False,
     mesh_prim_paths=["/World/ground"],
