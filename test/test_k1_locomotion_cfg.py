@@ -57,6 +57,14 @@ def test_locomotion_runner_bounds_policy_actions():
     assert ast.literal_eval(assignments["clip_actions"]) == 1.0
 
 
+def test_locomotion_com_randomization_uses_project_compatibility_term():
+    """CoM randomization remains available on Isaac Lab releases before 2.2."""
+    assignments = _class_assignments(LOCOMOTION_DIR / "tracking_env_cfg.py", "EventCfg")
+    event_call = assignments["base_com"]
+    func = next(keyword.value for keyword in event_call.keywords if keyword.arg == "func")
+    assert ast.unparse(func) == "beyond_mimic_mdp.randomize_rigid_body_com"
+
+
 def test_locomotion_robot_has_exactly_twelve_movable_leg_joints():
     """The locomotion asset fixes the upper body and preserves every leg joint."""
     urdf = Path(__file__).parents[1] / "booster_assets/robots/K1/K1_locomotion.urdf"
@@ -74,4 +82,5 @@ if __name__ == "__main__":
     test_locomotion_tasks_are_registered()
     test_environment_variants_have_public_config_classes()
     test_locomotion_runner_bounds_policy_actions()
+    test_locomotion_com_randomization_uses_project_compatibility_term()
     test_locomotion_robot_has_exactly_twelve_movable_leg_joints()
