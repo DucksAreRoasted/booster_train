@@ -15,6 +15,7 @@ LOCOMOTION_TASK_IDS = {
     "Booster-K1-Locomotion-Flat-v0",
     "Booster-K1-Locomotion-Rough-v0",
     "Booster-K1-Locomotion-Flat-v0-Play",
+    "Booster-K1-Locomotion-Rough-v0-Play",
 }
 LOCOMOTION_DIR = (
     Path(__file__).parents[1]
@@ -44,10 +45,10 @@ def test_locomotion_tasks_are_registered():
 
 
 def test_environment_variants_have_public_config_classes():
-    """The registered entry points resolve to the three documented config classes."""
+    """The registered entry points resolve to the documented config classes."""
     module = ast.parse((LOCOMOTION_DIR / "env_cfg.py").read_text())
     class_names = {node.name for node in module.body if isinstance(node, ast.ClassDef)}
-    assert {"FlatEnvCfg", "RoughEnvCfg", "PlayFlatEnvCfg"} <= class_names
+    assert {"FlatEnvCfg", "RoughEnvCfg", "PlayFlatEnvCfg", "PlayRoughEnvCfg"} <= class_names
 
 
 def test_locomotion_runner_bounds_policy_actions():

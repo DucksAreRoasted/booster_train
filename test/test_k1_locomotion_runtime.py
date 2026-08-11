@@ -12,10 +12,12 @@ simulation_app = app_launcher.app
 
 import gymnasium as gym  # noqa: E402
 import torch  # noqa: E402
+
 from booster_train.rsl_rl_compat import TienKungRslRlVecEnvWrapper  # noqa: E402
 from booster_train.tasks.manager_based.beyond_mimic.robots.k1.locomotion.env_cfg import (  # noqa: E402
     FlatEnvCfg,
     PlayFlatEnvCfg,
+    PlayRoughEnvCfg,
     RoughEnvCfg,
 )
 from booster_train.tasks.manager_based.beyond_mimic.robots.k1.locomotion.ppo_cfg import PPORunnerCfg  # noqa: E402
@@ -26,6 +28,7 @@ def test_locomotion_config_variants():
     flat = FlatEnvCfg()
     rough = RoughEnvCfg()
     play = PlayFlatEnvCfg()
+    play_rough = PlayRoughEnvCfg()
     runner = PPORunnerCfg()
 
     assert flat.scene.terrain.terrain_type == "plane"
@@ -45,6 +48,7 @@ def test_locomotion_config_variants():
     assert rough.observations.critic.height_scan.noise.n_max == 0.02
     assert rough.rewards.action_rate_l2.weight == -0.05
     assert rough.commands.base_velocity.resampling_time_range == (20.0, 20.0)
+    assert rough.curriculum.terrain_levels.func.__name__ == "terrain_levels_track"
 
     assert flat.observations.policy.height_scan.noise.n_min == -0.1
     assert flat.rewards.action_rate_l2.weight == -0.5
@@ -54,6 +58,13 @@ def test_locomotion_config_variants():
     assert play.events.push_robot is None
     assert not play.observations.policy.enable_corruption
 
+    assert play_rough.scene.num_envs == 50
+    assert play_rough.scene.terrain.max_init_terrain_level == 4
+    assert play_rough.scene.terrain.terrain_generator.seed == 42
+    assert play_rough.curriculum.terrain_levels is None
+    assert play_rough.events.push_robot is None
+    assert not play_rough.observations.policy.enable_corruption
+
     assert runner.experiment_name == "k1_locomotion"
     assert runner.max_iterations == 50000
     assert runner.clip_actions == 1.0
@@ -61,16 +72,20 @@ def test_locomotion_config_variants():
     assert runner.algorithm.entropy_coef == 0.01
 
 
-def test_flat_environment_steps_without_crashing():
-    """A small flat environment can reset and advance for one hundred policy steps."""
-    cfg = FlatEnvCfg()
-    cfg.scene.num_envs = 4
+def test_rough_environment_steps_with_tracking_curriculum_and_clipped_actions():
+    """The rough task runs its custom curriculum while bounding policy actions."""
+    cfg = RoughEnvCfg()
+    cfg.scene.num_envs = 2
+    cfg.scene.terrain.terrain_generator.num_rows = 2
+    cfg.scene.terrain.max_init_terrain_level = 0
     cfg.sim.device = "cpu"
     cfg.commands.base_velocity.debug_vis = False
+    cfg.events.push_robot = None
 
-    env = gym.make("Booster-K1-Locomotion-Flat-v0", cfg=cfg)
+    env = gym.make("Booster-K1-Locomotion-Rough-v0", cfg=cfg)
     wrapped_env = TienKungRslRlVecEnvWrapper(env, clip_actions=1.0)
     try:
+        assert env.unwrapped.curriculum_manager.active_terms == ["terrain_levels"]
         oversized_action = torch.full(
             (env.unwrapped.num_envs, env.unwrapped.action_manager.total_action_dim),
             1000.0,
@@ -85,7 +100,7 @@ def test_flat_environment_steps_without_crashing():
         )
         for _ in range(100):
             wrapped_env.step(action)
-        print("K1_LOCOMOTION_SMOKE_OK envs=4 steps=100", flush=True)
+        print("K1_ROUGH_LOCOMOTION_SMOKE_OK envs=2 steps=100", flush=True)
     finally:
         wrapped_env.close()
 
@@ -93,6 +108,6 @@ def test_flat_environment_steps_without_crashing():
 if __name__ == "__main__":
     try:
         test_locomotion_config_variants()
-        test_flat_environment_steps_without_crashing()
+        test_rough_environment_steps_with_tracking_curriculum_and_clipped_actions()
     finally:
         simulation_app.close()

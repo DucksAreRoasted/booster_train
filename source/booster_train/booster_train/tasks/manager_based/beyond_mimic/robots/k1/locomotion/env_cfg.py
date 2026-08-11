@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import isaaclab.terrains as terrain_gen
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.terrains import TerrainGeneratorCfg
@@ -14,6 +13,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from booster_train.assets.robots.booster import BOOSTER_K1_LOCOMOTION_CFG as ROBOT_CFG
 from booster_train.assets.robots.booster import K1_ACTION_SCALE
 
+from . import curriculums
 from .tracking_env_cfg import TrackingEnvCfg
 
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
@@ -91,15 +91,14 @@ class RoughEnvCfg(FlatEnvCfg):
         # learning robustness to sensor error.
         self.observations.policy.height_scan.noise = Unoise(n_min=-0.02, n_max=0.02)
         self.observations.critic.height_scan.noise = Unoise(n_min=-0.02, n_max=0.02)
-        # terrain_levels_vel judges progress from net displacement over the
-        # episode. Resampling direction every 5--10 seconds can punish a policy
-        # that tracks commands correctly but returns toward its start position.
+        # Keep one command per episode so the tracking-based terrain curriculum
+        # receives a stable task target and evaluation is easy to interpret.
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         self.rewards.base_height_l2.params["sensor_cfg"] = SceneEntityCfg("height_scanner")
         # Rough terrain needs enough freedom to adjust foot placement. Retain a
         # meaningful smoothness cost without letting it dominate tracking.
         self.rewards.action_rate_l2.weight = -0.05
-        self.curriculum.terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+        self.curriculum.terrain_levels = CurrTerm(func=curriculums.terrain_levels_track)
 
 
 @configclass
@@ -113,3 +112,18 @@ class PlayFlatEnvCfg(FlatEnvCfg):
         self.observations.policy.enable_corruption = False
         self.observations.critic.enable_corruption = False
         self.events.push_robot = None
+
+
+@configclass
+class PlayRoughEnvCfg(RoughEnvCfg):
+    """Deterministic rough-terrain scene spanning all curriculum levels."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 50
+        self.scene.terrain.terrain_generator.seed = 42
+        self.scene.terrain.max_init_terrain_level = self.scene.terrain.terrain_generator.num_rows - 1
+        self.observations.policy.enable_corruption = False
+        self.observations.critic.enable_corruption = False
+        self.events.push_robot = None
+        self.curriculum.terrain_levels = None
