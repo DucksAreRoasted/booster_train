@@ -17,7 +17,7 @@ def classify_terrain_progress(
     lin_track_score: torch.Tensor,
     ang_track_score: torch.Tensor,
     failed: torch.Tensor,
-    valid_episode: torch.Tensor,
+    timed_out: torch.Tensor,
     move_up_threshold: float = 0.75,
     move_down_threshold: float = 0.55,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -27,13 +27,13 @@ def classify_terrain_progress(
     A neutral band prevents terrain levels from oscillating around one cutoff.
     """
     move_up = (
-        valid_episode
+        timed_out
         & ~failed
         & (lin_track_score >= move_up_threshold)
         & (ang_track_score >= move_up_threshold)
     )
-    move_down = valid_episode & (
-        failed | (lin_track_score < move_down_threshold) | (ang_track_score < move_down_threshold)
+    move_down = failed | (
+        timed_out & ((lin_track_score < move_down_threshold) | (ang_track_score < move_down_threshold))
     )
     move_down &= ~move_up
     return move_up, move_down
@@ -67,23 +67,24 @@ def terrain_levels_track(
     lin_track_score = normalized_score(lin_reward_name)
     ang_track_score = normalized_score(ang_reward_name)
     failed = env.termination_manager.terminated[env_ids]
-    valid_episode = env.episode_length_buf[env_ids] > 0
+    timed_out = env.termination_manager.time_outs[env_ids]
 
     move_up, move_down = classify_terrain_progress(
         lin_track_score,
         ang_track_score,
         failed,
-        valid_episode,
+        timed_out,
         move_up_threshold,
         move_down_threshold,
     )
     terrain.update_env_origins(env_ids, move_up, move_down)
 
-    valid_count = valid_episode.float().sum().clamp_min(1.0)
+    completed = failed | timed_out
+    completed_count = completed.float().sum().clamp_min(1.0)
     return {
         "mean_level": torch.mean(terrain.terrain_levels.float()),
-        "move_up_rate": move_up.float().sum() / valid_count,
-        "move_down_rate": move_down.float().sum() / valid_count,
-        "lin_track_score": (lin_track_score * valid_episode).sum() / valid_count,
-        "ang_track_score": (ang_track_score * valid_episode).sum() / valid_count,
+        "move_up_rate": move_up.float().sum() / completed_count,
+        "move_down_rate": move_down.float().sum() / completed_count,
+        "lin_track_score": (lin_track_score * completed).sum() / completed_count,
+        "ang_track_score": (ang_track_score * completed).sum() / completed_count,
     }

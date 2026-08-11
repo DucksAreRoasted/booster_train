@@ -5,6 +5,7 @@
 
 import isaaclab.terrains as terrain_gen
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.terrains import TerrainGeneratorCfg
 from isaaclab.utils import configclass
@@ -13,7 +14,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from booster_train.assets.robots.booster import BOOSTER_K1_LOCOMOTION_CFG as ROBOT_CFG
 from booster_train.assets.robots.booster import K1_ACTION_SCALE
 
-from . import curriculums
+from . import curriculums, evaluation
 from .tracking_env_cfg import TrackingEnvCfg
 
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
@@ -122,8 +123,9 @@ class PlayRoughEnvCfg(RoughEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 50
         self.scene.terrain.terrain_generator.seed = 42
-        self.scene.terrain.max_init_terrain_level = self.scene.terrain.terrain_generator.num_rows - 1
+        self.scene.terrain.max_init_terrain_level = 0
         self.observations.policy.enable_corruption = False
         self.observations.critic.enable_corruption = False
         self.events.push_robot = None
+        self.events.distribute_terrain_levels = EventTerm(func=evaluation.distribute_terrain_levels, mode="startup")
         self.curriculum.terrain_levels = None

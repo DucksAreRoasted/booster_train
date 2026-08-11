@@ -59,8 +59,9 @@ def test_locomotion_config_variants():
     assert not play.observations.policy.enable_corruption
 
     assert play_rough.scene.num_envs == 50
-    assert play_rough.scene.terrain.max_init_terrain_level == 4
+    assert play_rough.scene.terrain.max_init_terrain_level == 0
     assert play_rough.scene.terrain.terrain_generator.seed == 42
+    assert play_rough.events.distribute_terrain_levels.func.__name__ == "distribute_terrain_levels"
     assert play_rough.curriculum.terrain_levels is None
     assert play_rough.events.push_robot is None
     assert not play_rough.observations.policy.enable_corruption
@@ -78,6 +79,7 @@ def test_rough_environment_steps_with_tracking_curriculum_and_clipped_actions():
     cfg.scene.num_envs = 2
     cfg.scene.terrain.terrain_generator.num_rows = 2
     cfg.scene.terrain.max_init_terrain_level = 0
+    cfg.episode_length_s = 0.04
     cfg.sim.device = "cpu"
     cfg.commands.base_velocity.debug_vis = False
     cfg.events.push_robot = None
@@ -98,9 +100,17 @@ def test_rough_environment_steps_with_tracking_curriculum_and_clipped_actions():
             (env.unwrapped.num_envs, env.unwrapped.action_manager.total_action_dim),
             device=env.unwrapped.device,
         )
-        for _ in range(100):
-            wrapped_env.step(action)
-        print("K1_ROUGH_LOCOMOTION_SMOKE_OK envs=2 steps=100", flush=True)
+        curriculum_log = None
+        for _ in range(5):
+            _, _, _, extras = wrapped_env.step(action)
+            log = extras.get("log", {})
+            if "Curriculum/terrain_levels/mean_level" in log:
+                curriculum_log = log
+                break
+        assert curriculum_log is not None
+        assert "Curriculum/terrain_levels/move_up_rate" in curriculum_log
+        assert "Curriculum/terrain_levels/move_down_rate" in curriculum_log
+        print("K1_ROUGH_LOCOMOTION_CURRICULUM_SMOKE_OK", flush=True)
     finally:
         wrapped_env.close()
 

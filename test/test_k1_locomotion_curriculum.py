@@ -27,7 +27,7 @@ def test_tracking_curriculum_promotes_good_episodes_and_demotes_failures():
         lin_track_score=torch.tensor([0.90, 0.90, 0.40]),
         ang_track_score=torch.tensor([0.85, 0.85, 0.90]),
         failed=torch.tensor([False, True, False]),
-        valid_episode=torch.tensor([True, True, True]),
+        timed_out=torch.tensor([True, True, True]),
     )
 
     assert move_up.tolist() == [True, False, False]
@@ -59,7 +59,10 @@ def test_tracking_curriculum_updates_terrain_from_normalized_episode_rewards():
     env = SimpleNamespace(
         scene=SimpleNamespace(terrain=terrain),
         reward_manager=FakeRewardManager(),
-        termination_manager=SimpleNamespace(terminated=torch.tensor([False, False, False])),
+        termination_manager=SimpleNamespace(
+            terminated=torch.tensor([False, False, False]),
+            time_outs=torch.tensor([True, True, False]),
+        ),
         episode_length_buf=torch.tensor([1000, 1000, 0]),
         max_episode_length_s=20.0,
     )
