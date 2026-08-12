@@ -99,6 +99,18 @@ class RoughEnvCfg(FlatEnvCfg):
         # Rough terrain needs enough freedom to adjust foot placement. Retain a
         # meaningful smoothness cost without letting it dominate tracking.
         self.rewards.action_rate_l2.weight = -0.05
+        # Terrain traversal is the curriculum target. Keep pushes occasional
+        # and planar so frequent 6-DoF impulses do not dominate terrain-level
+        # demotion or the root-height termination signal.
+        self.events.push_robot.interval_range_s = (8.0, 12.0)
+        self.events.push_robot.params["velocity_range"] = {
+            "x": (-0.25, 0.25),
+            "y": (-0.25, 0.25),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (-0.25, 0.25),
+        }
         self.curriculum.terrain_levels = CurrTerm(func=curriculums.terrain_levels_track)
 
 

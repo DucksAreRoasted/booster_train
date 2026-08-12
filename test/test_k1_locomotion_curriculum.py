@@ -34,6 +34,22 @@ def test_tracking_curriculum_promotes_good_episodes_and_demotes_failures():
     assert move_down.tolist() == [False, True, True]
 
 
+def test_tracking_curriculum_does_not_promote_standing_commands():
+    """Surviving at zero command does not demonstrate rough-terrain traversal."""
+    curriculum = _load_curriculum_module()
+
+    move_up, move_down = curriculum.classify_terrain_progress(
+        lin_track_score=torch.tensor([0.95, 0.95]),
+        ang_track_score=torch.tensor([0.95, 0.95]),
+        failed=torch.tensor([False, False]),
+        timed_out=torch.tensor([True, True]),
+        progression_eligible=torch.tensor([False, True]),
+    )
+
+    assert move_up.tolist() == [False, True]
+    assert move_down.tolist() == [False, False]
+
+
 def test_tracking_curriculum_updates_terrain_from_normalized_episode_rewards():
     """The Isaac Lab adapter updates levels and exposes useful training diagnostics."""
     curriculum = _load_curriculum_module()
@@ -62,6 +78,9 @@ def test_tracking_curriculum_updates_terrain_from_normalized_episode_rewards():
         termination_manager=SimpleNamespace(
             terminated=torch.tensor([False, False, False]),
             time_outs=torch.tensor([True, True, False]),
+        ),
+        command_manager=SimpleNamespace(
+            get_command=lambda _: torch.tensor([[0.5, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.0, 0.0]])
         ),
         episode_length_buf=torch.tensor([1000, 1000, 0]),
         max_episode_length_s=20.0,

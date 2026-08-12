@@ -20,15 +20,19 @@ def classify_terrain_progress(
     timed_out: torch.Tensor,
     move_up_threshold: float = 0.75,
     move_down_threshold: float = 0.55,
+    progression_eligible: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Classify completed episodes for terrain progression.
 
     Tracking scores are normalized to ``[0, 1]`` by the curriculum adapter.
     A neutral band prevents terrain levels from oscillating around one cutoff.
     """
+    if progression_eligible is None:
+        progression_eligible = torch.ones_like(timed_out)
     move_up = (
         timed_out
         & ~failed
+        & progression_eligible
         & (lin_track_score >= move_up_threshold)
         & (ang_track_score >= move_up_threshold)
     )
@@ -46,6 +50,7 @@ def terrain_levels_track(
     ang_reward_name: str = "track_ang_vel_z",
     move_up_threshold: float = 0.75,
     move_down_threshold: float = 0.55,
+    minimum_command_norm: float = 0.1,
 ) -> dict[str, torch.Tensor]:
     """Progress terrain from normalized tracking quality and episode survival.
 
@@ -68,6 +73,8 @@ def terrain_levels_track(
     ang_track_score = normalized_score(ang_reward_name)
     failed = env.termination_manager.terminated[env_ids]
     timed_out = env.termination_manager.time_outs[env_ids]
+    commands = env.command_manager.get_command("base_velocity")[env_ids]
+    progression_eligible = torch.linalg.vector_norm(commands, dim=1) >= minimum_command_norm
 
     move_up, move_down = classify_terrain_progress(
         lin_track_score,
@@ -76,6 +83,7 @@ def terrain_levels_track(
         timed_out,
         move_up_threshold,
         move_down_threshold,
+        progression_eligible,
     )
     terrain.update_env_origins(env_ids, move_up, move_down)
 

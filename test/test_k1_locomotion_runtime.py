@@ -49,6 +49,15 @@ def test_locomotion_config_variants():
     assert rough.rewards.action_rate_l2.weight == -0.05
     assert rough.commands.base_velocity.resampling_time_range == (20.0, 20.0)
     assert rough.curriculum.terrain_levels.func.__name__ == "terrain_levels_track"
+    assert rough.events.push_robot.interval_range_s == (8.0, 12.0)
+    assert rough.events.push_robot.params["velocity_range"] == {
+        "x": (-0.25, 0.25),
+        "y": (-0.25, 0.25),
+        "z": (0.0, 0.0),
+        "roll": (0.0, 0.0),
+        "pitch": (0.0, 0.0),
+        "yaw": (-0.25, 0.25),
+    }
 
     assert flat.observations.policy.height_scan.noise.n_min == -0.1
     assert flat.rewards.action_rate_l2.weight == -0.5
