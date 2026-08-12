@@ -57,6 +57,28 @@ def test_locomotion_runner_bounds_policy_actions():
     assert ast.literal_eval(assignments["clip_actions"]) == 1.0
 
 
+def test_locomotion_training_disables_entropy_pressure_on_clipped_actions():
+    """Clipped locomotion actions do not receive an incentive for unbounded policy noise."""
+    module = ast.parse((LOCOMOTION_DIR / "ppo_cfg.py").read_text())
+    runner_cfg = next(node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "PPORunnerCfg")
+    post_init = next(
+        node for node in runner_cfg.body if isinstance(node, ast.FunctionDef) and node.name == "__post_init__"
+    )
+    entropy_assignment = next(
+        node
+        for node in post_init.body
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "self.algorithm.entropy_coef"
+    )
+
+    assert ast.literal_eval(entropy_assignment.value) == 0.0
+
+
+def test_locomotion_resume_starts_with_a_clean_optimizer():
+    """Transferring the flat policy to rough terrain does not reuse stale Adam momentum."""
+    assignments = _class_assignments(LOCOMOTION_DIR / "ppo_cfg.py", "PPORunnerCfg")
+    assert ast.literal_eval(assignments["load_optimizer"]) is False
+
+
 def test_locomotion_com_randomization_uses_project_compatibility_term():
     """CoM randomization remains available on Isaac Lab releases before 2.2."""
     assignments = _class_assignments(LOCOMOTION_DIR / "tracking_env_cfg.py", "EventCfg")
@@ -82,5 +104,7 @@ if __name__ == "__main__":
     test_locomotion_tasks_are_registered()
     test_environment_variants_have_public_config_classes()
     test_locomotion_runner_bounds_policy_actions()
+    test_locomotion_training_disables_entropy_pressure_on_clipped_actions()
+    test_locomotion_resume_starts_with_a_clean_optimizer()
     test_locomotion_com_randomization_uses_project_compatibility_term()
     test_locomotion_robot_has_exactly_twelve_movable_leg_joints()

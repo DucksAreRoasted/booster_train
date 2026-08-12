@@ -8,6 +8,9 @@ class BasePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 30000
     save_interval = 1000
     experiment_name = "beyond_mimic"
+    # Normal resumes retain optimizer state unless a task is transferring a
+    # policy into meaningfully different training dynamics.
+    load_optimizer = True
     empirical_normalization = True
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,

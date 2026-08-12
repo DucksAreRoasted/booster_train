@@ -30,6 +30,20 @@ def add_rsl_rl_args(parser: argparse.ArgumentParser):
     arg_group.add_argument("--resume", action="store_true", default=False, help="Whether to resume from a checkpoint.")
     arg_group.add_argument("--load_run", type=str, default=None, help="Name of the run folder to resume from.")
     arg_group.add_argument("--checkpoint", type=str, default=None, help="Checkpoint file to resume from.")
+    optimizer_group = arg_group.add_mutually_exclusive_group()
+    optimizer_group.add_argument(
+        "--load_optimizer",
+        dest="load_optimizer",
+        action="store_true",
+        default=None,
+        help="Restore optimizer state from the checkpoint.",
+    )
+    optimizer_group.add_argument(
+        "--reset_optimizer",
+        dest="load_optimizer",
+        action="store_false",
+        help="Load model weights and normalizers but start with a fresh optimizer.",
+    )
     # -- logger arguments
     arg_group.add_argument(
         "--logger", type=str, default=None, choices={"wandb", "tensorboard", "neptune"}, help="Logger module to use."
@@ -79,6 +93,8 @@ def update_rsl_rl_cfg(agent_cfg: RslRlOnPolicyRunnerCfg, args_cli: argparse.Name
         agent_cfg.load_run = args_cli.load_run
     if args_cli.checkpoint is not None:
         agent_cfg.load_checkpoint = args_cli.checkpoint
+    if args_cli.load_optimizer is not None:
+        agent_cfg.load_optimizer = args_cli.load_optimizer
     if args_cli.run_name is not None:
         agent_cfg.run_name = args_cli.run_name
     if args_cli.logger is not None:
