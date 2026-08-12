@@ -73,10 +73,10 @@ def test_locomotion_training_disables_entropy_pressure_on_clipped_actions():
     assert ast.literal_eval(entropy_assignment.value) == 0.0
 
 
-def test_locomotion_resume_starts_with_a_clean_optimizer():
-    """Transferring the flat policy to rough terrain does not reuse stale Adam momentum."""
+def test_locomotion_resume_retains_optimizer_unless_transfer_is_requested():
+    """Ordinary resumes keep Adam state; flat-to-rough transfers opt out through the CLI."""
     assignments = _class_assignments(LOCOMOTION_DIR / "ppo_cfg.py", "PPORunnerCfg")
-    assert ast.literal_eval(assignments["load_optimizer"]) is False
+    assert "load_optimizer" not in assignments
 
 
 def test_locomotion_com_randomization_uses_project_compatibility_term():
@@ -105,6 +105,6 @@ if __name__ == "__main__":
     test_environment_variants_have_public_config_classes()
     test_locomotion_runner_bounds_policy_actions()
     test_locomotion_training_disables_entropy_pressure_on_clipped_actions()
-    test_locomotion_resume_starts_with_a_clean_optimizer()
+    test_locomotion_resume_retains_optimizer_unless_transfer_is_requested()
     test_locomotion_com_randomization_uses_project_compatibility_term()
     test_locomotion_robot_has_exactly_twelve_movable_leg_joints()

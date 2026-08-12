@@ -14,9 +14,6 @@ class PPORunnerCfg(BasePPORunnerCfg):
     experiment_name = "k1_locomotion"
     num_steps_per_env = 24
     save_interval = 1000
-    # Locomotion commonly transfers a flat policy to rough terrain. Preserve
-    # model and normalizer weights while starting Adam without stale momentum.
-    load_optimizer = False
     # Joint-position actions are normalized around the default pose. Bounding
     # them prevents rare out-of-distribution observations from producing huge
     # action-rate penalties and corrupting the value targets.

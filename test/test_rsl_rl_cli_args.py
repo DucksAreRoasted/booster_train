@@ -78,4 +78,14 @@ def test_training_honors_the_configured_optimizer_resume_policy():
     )
     load_optimizer = next(keyword.value for keyword in load_call.keywords if keyword.arg == "load_optimizer")
 
-    assert ast.unparse(load_optimizer) == "agent_cfg.load_optimizer"
+    assert isinstance(load_optimizer, ast.Call)
+    assert ast.unparse(load_optimizer.func) == "getattr"
+    arguments = [
+        ast.literal_eval(arg) if isinstance(arg, ast.Constant) else ast.unparse(arg)
+        for arg in load_optimizer.args
+    ]
+    assert arguments == [
+        "agent_cfg",
+        "load_optimizer",
+        True,
+    ]

@@ -69,8 +69,8 @@ def test_locomotion_config_variants():
     assert runner.experiment_name == "k1_locomotion"
     assert runner.max_iterations == 50000
     assert runner.clip_actions == 1.0
-    assert runner.load_optimizer is False
-    assert runner.to_dict()["load_optimizer"] is False
+    assert runner.load_optimizer is True
+    assert runner.to_dict()["load_optimizer"] is True
     assert runner.policy.init_noise_std == 0.8
     assert runner.algorithm.entropy_coef == 0.0
 
