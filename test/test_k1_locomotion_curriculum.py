@@ -50,6 +50,29 @@ def test_tracking_curriculum_does_not_promote_standing_commands():
     assert move_down.tolist() == [False, False]
 
 
+def test_tracking_curriculum_requires_consecutive_successes_to_promote():
+    """One lucky episode must not immediately advance an environment."""
+    curriculum = _load_curriculum_module()
+    streak = torch.zeros(3, dtype=torch.long)
+
+    first_move_up, streak = curriculum.confirm_terrain_promotions(
+        streak,
+        move_up_candidate=torch.tensor([True, True, False]),
+        episode_completed=torch.tensor([True, True, True]),
+        required_successes=2,
+    )
+    second_move_up, streak = curriculum.confirm_terrain_promotions(
+        streak,
+        move_up_candidate=torch.tensor([True, False, True]),
+        episode_completed=torch.tensor([True, True, True]),
+        required_successes=2,
+    )
+
+    assert first_move_up.tolist() == [False, False, False]
+    assert second_move_up.tolist() == [True, False, False]
+    assert streak.tolist() == [0, 0, 1]
+
+
 def test_tracking_curriculum_updates_terrain_from_normalized_episode_rewards():
     """The Isaac Lab adapter updates levels and exposes useful training diagnostics."""
     curriculum = _load_curriculum_module()
@@ -86,7 +109,7 @@ def test_tracking_curriculum_updates_terrain_from_normalized_episode_rewards():
         max_episode_length_s=20.0,
     )
 
-    diagnostics = curriculum.terrain_levels_track(env, torch.tensor([0, 1, 2]))
+    diagnostics = curriculum.terrain_levels_track(env, torch.tensor([0, 1, 2]), required_successes=1)
 
     assert terrain.terrain_levels.tolist() == [1, 1, 1]
     assert diagnostics == {

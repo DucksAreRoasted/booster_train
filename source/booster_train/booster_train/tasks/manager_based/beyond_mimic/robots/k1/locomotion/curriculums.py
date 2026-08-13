@@ -18,7 +18,7 @@ def classify_terrain_progress(
     ang_track_score: torch.Tensor,
     failed: torch.Tensor,
     timed_out: torch.Tensor,
-    move_up_threshold: float = 0.75,
+    move_up_threshold: float = 0.80,
     move_down_threshold: float = 0.55,
     progression_eligible: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -43,14 +43,40 @@ def classify_terrain_progress(
     return move_up, move_down
 
 
+def confirm_terrain_promotions(
+    promotion_streak: torch.Tensor,
+    move_up_candidate: torch.Tensor,
+    episode_completed: torch.Tensor,
+    required_successes: int = 2,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Require repeated high-quality episodes before increasing difficulty.
+
+    A completed episode that is not promotion-worthy breaks the streak. This
+    prevents a lucky rollout from advancing an environment while still allowing
+    failures to demote immediately through :func:`classify_terrain_progress`.
+    """
+    if required_successes < 1:
+        raise ValueError("required_successes must be at least 1.")
+
+    next_streak = torch.where(
+        episode_completed,
+        torch.where(move_up_candidate, promotion_streak + 1, torch.zeros_like(promotion_streak)),
+        promotion_streak,
+    )
+    move_up = move_up_candidate & (next_streak >= required_successes)
+    next_streak = torch.where(move_up, torch.zeros_like(next_streak), next_streak)
+    return move_up, next_streak
+
+
 def terrain_levels_track(
     env: ManagerBasedRLEnv,
     env_ids: Sequence[int],
     lin_reward_name: str = "track_lin_vel_xy",
     ang_reward_name: str = "track_ang_vel_z",
-    move_up_threshold: float = 0.75,
+    move_up_threshold: float = 0.80,
     move_down_threshold: float = 0.55,
     minimum_command_norm: float = 0.1,
+    required_successes: int = 2,
 ) -> dict[str, torch.Tensor]:
     """Progress terrain from normalized tracking quality and episode survival.
 
@@ -76,7 +102,7 @@ def terrain_levels_track(
     commands = env.command_manager.get_command("base_velocity")[env_ids]
     progression_eligible = torch.linalg.vector_norm(commands, dim=1) >= minimum_command_norm
 
-    move_up, move_down = classify_terrain_progress(
+    move_up_candidate, move_down = classify_terrain_progress(
         lin_track_score,
         ang_track_score,
         failed,
@@ -85,9 +111,20 @@ def terrain_levels_track(
         move_down_threshold,
         progression_eligible,
     )
+    completed = failed | timed_out
+    promotion_streak = getattr(env, "_k1_terrain_promotion_streak", None)
+    if promotion_streak is None or promotion_streak.shape != terrain.terrain_levels.shape:
+        promotion_streak = torch.zeros_like(terrain.terrain_levels, dtype=torch.long)
+    move_up, updated_streak = confirm_terrain_promotions(
+        promotion_streak[env_ids],
+        move_up_candidate,
+        completed,
+        required_successes,
+    )
+    promotion_streak[env_ids] = updated_streak
+    env._k1_terrain_promotion_streak = promotion_streak
     terrain.update_env_origins(env_ids, move_up, move_down)
 
-    completed = failed | timed_out
     completed_count = completed.float().sum().clamp_min(1.0)
     return {
         "mean_level": torch.mean(terrain.terrain_levels.float()),
